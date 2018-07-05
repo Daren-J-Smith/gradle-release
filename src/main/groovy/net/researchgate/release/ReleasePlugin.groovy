@@ -10,6 +10,8 @@
 
 package net.researchgate.release
 
+import net.researchgate.release.task.CheckCommitNeededTask
+import net.researchgate.release.task.UnSnapshotVersionTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -62,12 +64,18 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
             description: 'Finds the correct SCM plugin') doLast this.&createScmAdapter
         project.task('initScmAdapter', group: RELEASE_GROUP,
             description: 'Initializes the SCM plugin') doLast this.&initScmAdapter
-        project.task('checkCommitNeeded', group: RELEASE_GROUP,
-            description: 'Checks to see if there are any added, modified, removed, or un-versioned files.') doLast this.&checkCommitNeeded
+        project.tasks.create('checkCommitNeeded', CheckCommitNeededTask) {
+            group = RELEASE_GROUP
+            description = 'Checks to see if there are any added, modified, removed, or un-versioned files.'
+        }.setReleasePlugin(this)
+//        project.task('checkCommitNeeded', group: RELEASE_GROUP,
+//                description: 'Checks to see if there are any added, modified, removed, or un-versioned files.') doLast this.&checkCommitNeeded
         project.task('checkUpdateNeeded', group: RELEASE_GROUP,
             description: 'Checks to see if there are any incoming or outgoing changes that haven\'t been applied locally.') doLast this.&checkUpdateNeeded
-        project.task('unSnapshotVersion', group: RELEASE_GROUP,
-            description: 'Removes "-SNAPSHOT" from your project\'s current version.') doLast this.&unSnapshotVersion
+        project.tasks.create('unSnapshotVersion', UnSnapshotVersionTask) {
+            group = RELEASE_GROUP
+            description = 'Removes "-SNAPSHOT" from your project\'s current version.'
+        }.setReleasePlugin(this)
         project.task('confirmReleaseVersion', group: RELEASE_GROUP,
             description: 'Prompts user for this release version. Allows for alpha or pre releases.') doLast this.&confirmReleaseVersion
         project.task('checkSnapshotDependencies', group: RELEASE_GROUP,
@@ -148,10 +156,6 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
         scmAdapter.init()
     }
 
-    void checkCommitNeeded() {
-        scmAdapter.checkCommitNeeded()
-    }
-
     void checkUpdateNeeded() {
         scmAdapter.checkUpdateNeeded()
     }
@@ -194,17 +198,6 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
             return
         }
         updateVersionProperty(getReleaseVersion())
-    }
-
-    void unSnapshotVersion() {
-        checkPropertiesFile()
-        def version = project.version.toString()
-
-        if (version.contains('-SNAPSHOT')) {
-            attributes.usesSnapshot = true
-            version -= '-SNAPSHOT'
-            updateVersionProperty(version)
-        }
     }
 
     void preTagCommit() {
@@ -315,5 +308,9 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
         }
 
         adapter
+    }
+
+    BaseScmAdapter getScmAdapter() {
+        scmAdapter
     }
 }
